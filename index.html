@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Candy Şukoo - Şükran'a Özel</title>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Quicksand:wght@700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --pink-bg: #ff85a2;
+            --gold: #ffd700;
+        }
+
+        * { box-sizing: border-box; user-select: none; touch-action: none; -webkit-tap-highlight-color: transparent; }
+
+        body {
+            background: linear-gradient(135deg, #fce4ec 0%, #ff85a2 100%);
+            font-family: 'Quicksand', sans-serif;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            min-height: 100vh; margin: 0; overflow: hidden;
+        }
+
+        /* --- UI ELEMENTS --- */
+        #splash {
+            position: fixed; inset: 0; background: radial-gradient(circle, #ff9a9e, #fecfef);
+            z-index: 1000; display: flex; flex-direction: column; justify-content: center;
+            align-items: center; text-align: center; padding: 20px;
+        }
+
+        #splash h1 { font-family: 'Fredoka One', cursive; font-size: 3.5rem; color: white; text-shadow: 4px 4px #ff4081; margin: 0; }
+        #splash p { font-size: 1.4rem; color: #ff4081; font-weight: bold; margin: 20px 0; background: white; padding: 10px 20px; border-radius: 50px; }
+
+        .header {
+            width: 95%; max-width: 450px; background: rgba(255,255,255,0.9);
+            border-radius: 25px; padding: 15px; display: flex; justify-content: space-around;
+            margin-bottom: 10px; box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+        }
+
+        .stat { text-align: center; }
+        .stat-label { font-size: 12px; color: #ff4081; }
+        .stat-val { font-family: 'Fredoka One', cursive; font-size: 22px; color: #333; }
+
+        /* --- GRID & CANDIES --- */
+        #grid {
+            display: grid; grid-template-columns: repeat(9, 1fr);
+            width: 95vw; max-width: 450px; aspect-ratio: 1/1;
+            background: rgba(255,255,255,0.3); border-radius: 15px; padding: 5px; gap: 4px;
+            position: relative; box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+        }
+
+        .cell {
+            width: 100%; height: 100%; display: flex; justify-content: center; align-items: center;
+            position: relative;
+        }
+
+        .candy {
+            width: 90%; height: 90%; border-radius: 12px; display: flex; justify-content: center;
+            align-items: center; font-size: 24px; position: absolute;
+            transition: transform 0.2s, top 0.3s, left 0.3s; cursor: grab;
+            box-shadow: 0 4px 0 rgba(0,0,0,0.1);
+            background: white; border: 2px solid rgba(255,255,255,0.5);
+        }
+
+        /* Types */
+        .t-0 { background: #ff7675; } /* Kalp */
+        .t-1 { background: #74b9ff; } /* Elmas */
+        .t-2 { background: #55efc4; } /* Altın */
+        .t-3 { background: #ffeaa7; } /* Bilezik */
+        .t-4 { background: #a29bfe; } /* Alyans */
+        .t-5 { background: #fab1a0; } /* Çiçek */
+
+        /* Special Effects */
+        .motivational-text {
+            position: absolute; font-family: 'Fredoka One', cursive; font-size: 28px;
+            color: #fff; text-shadow: 2px 2px #ff4081; pointer-events: none;
+            z-index: 500; animation: floatUp 1s forwards;
+        }
+
+        @keyframes floatUp {
+            0% { transform: translateY(0) scale(0.5); opacity: 0; }
+            50% { opacity: 1; }
+            100% { transform: translateY(-100px) scale(1.2); opacity: 0; }
+        }
+
+        .btn {
+            background: #ff4081; color: white; border: none; padding: 15px 40px;
+            border-radius: 50px; font-size: 1.5rem; font-weight: bold; cursor: pointer;
+            box-shadow: 0 6px 0 #c2185b; transition: 0.1s;
+        }
+        .btn:active { transform: translateY(4px); box-shadow: 0 2px 0 #c2185b; }
+
+        #modal {
+            position: fixed; inset: 0; background: rgba(255,133,162,0.9);
+            display: none; flex-direction: column; justify-content: center; align-items: center;
+            z-index: 2000; color: white; text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="splash">
+        <h1>Candy Şukoo</h1>
+        <p>Şükran için hazırlandı 💖 — Hakan</p>
+        <button class="btn" onclick="startGame()">OYUNA BAŞLA</button>
+    </div>
+
+    <div class="header">
+        <div class="stat"><div class="stat-label">HEDEF</div><div class="stat-val">5000</div></div>
+        <div class="stat"><div class="stat-label">SKOR</div><div id="score" class="stat-val">0</div></div>
+        <div class="stat"><div class="stat-label">HAMLE</div><div id="moves" class="stat-val">30</div></div>
+    </div>
+
+    <div id="grid"></div>
+
+    <div id="modal">
+        <h1 id="m-title"></h1>
+        <p id="m-msg" style="font-size: 1.5rem; margin: 20px;"></p>
+        <button class="btn" onclick="location.reload()">TEKRAR DENE</button>
+    </div>
+
+    <script>
+        const GRID_SIZE = 9;
+        const EMOJIS = ['💖', '💎', '🪙', '💍', '💰', '🌸'];
+        // Evlilik temalı motivasyonlar
+        const WORDS = ['HARİKASIN!', 'ŞÜKRAN ✨', 'MÜKEMMEL!', 'DÜĞÜN DERNEK!', 'BİR TANESİN!', 'IŞIL IŞIL!'];
+        
+        let score = 0;
+        let moves = 30;
+        let grid = [];
+        let isDragging = false;
+        let startCell = null;
+        let isProcessing = false;
+
+        const gridEl = document.getElementById('grid');
+
+        function startGame() {
+            document.getElementById('splash').style.display = 'none';
+            initGrid();
+        }
+
+        function initGrid() {
+            gridEl.innerHTML = '';
+            for (let r = 0; r < GRID_SIZE; r++) {
+                grid[r] = [];
+                for (let c = 0; c < GRID_SIZE; c++) {
+                    let type;
+                    // Başlangıçta 3'lü eşleşme olmamasını sağla
+                    do { type = Math.floor(Math.random() * EMOJIS.length); } 
+                    while (
+                        (c > 1 && grid[r][c-1].type === type && grid[r][c-2].type === type) ||
+                        (r > 1 && grid[r-1][c].type === type && grid[r-2][c].type === type)
+                    );
+                    
+                    const candy = { r, c, type, element: createCandyElement(r, c, type) };
+                    grid[r][c] = candy;
+                    gridEl.appendChild(candy.element);
+                }
+            }
+        }
+
+        function createCandyElement(r, c, type) {
+            const el = document.createElement('div');
+            el.className = `candy t-${type}`;
+            el.innerHTML = EMOJIS[type];
+            el.style.left = (c * (100 / GRID_SIZE)) + '%';
+            el.style.top = (r * (100 / GRID_SIZE)) + '%';
+            el.style.width = `calc(100% / ${GRID_SIZE} - 4px)`;
+            el.style.height = `calc(100% / ${GRID_SIZE} - 4px)`;
+            
+            // Mouse & Touch Events
+            el.addEventListener('mousedown', (e) => startSwipe(e, r, c));
+            el.addEventListener('touchstart', (e) => startSwipe(e.touches[0], r, c));
+            
+            return el;
+        }
+
+        function startSwipe(e, r, c) {
+            if (isProcessing || moves <= 0) return;
+            isDragging = true;
+            startCell = { r, c, x: e.clientX, y: e.clientY };
+        }
+
+        document.addEventListener('mousemove', (e) => handleMove(e));
+        document.addEventListener('touchmove', (e) => handleMove(e.touches[0]));
+
+        function handleMove(e) {
+            if (!isDragging || !startCell) return;
+            
+            const dx = e.clientX - startCell.x;
+            const dy = e.clientY - startCell.y;
+            const threshold = 30;
+
+            if (Math.abs(dx) > threshold || Math.abs(dy) > threshold) {
+                let targetR = startCell.r;
+                let targetC = startCell.c;
+
+                if (Math.abs(dx) > Math.abs(dy)) {
+                    targetC += dx > 0 ? 1 : -1;
+                } else {
+                    targetR += dy > 0 ? 1 : -1;
+                }
+
+                if (targetR >= 0 && targetR < GRID_SIZE && targetC >= 0 && targetC < GRID_SIZE) {
+                    executeMove(startCell.r, startCell.c, targetR, targetC);
+                }
+                isDragging = false;
+                startCell = null;
+            }
+        }
+
+        document.addEventListener('mouseup', () => isDragging = false);
+        document.addEventListener('touchend', () => isDragging = false);
+
+        async function executeMove(r1, c1, r2, c2) {
+            isProcessing = true;
+            await swap(r1, c1, r2, c2);
+
+            const matches = findMatches();
+            if (matches.length > 0) {
+                moves--;
+                document.getElementById('moves').innerText = moves;
+                await resolveMatches();
+            } else {
+                // Eşleşme yoksa geri al
+                await swap(r1, c1, r2, c2);
+            }
+            isProcessing = false;
+            checkStatus();
+        }
+
+        async function swap(r1, c1, r2, c2) {
+            const candy1 = grid[r1][c1];
+            const candy2 = grid[r2][c2];
+
+            // Visual Swap
+            candy1.element.style.left = (c2 * (100 / GRID_SIZE)) + '%';
+            candy1.element.style.top = (r2 * (100 / GRID_SIZE)) + '%';
+            candy2.element.style.left = (c1 * (100 / GRID_SIZE)) + '%';
+            candy2.element.style.top = (r1 * (100 / GRID_SIZE)) + '%';
+
+            // Logic Swap
+            grid[r1][c1] = candy2;
+            grid[r2][c2] = candy1;
+            candy1.r = r2; candy1.c = c2;
+            candy2.r = r1; candy2.c = c1;
+
+            await new Promise(r => setTimeout(r, 300));
+        }
+
+        function findMatches() {
+            let matched = new Set();
+            // Yatay
+            for (let r = 0; r < GRID_SIZE; r++) {
+                for (let c = 0; c < GRID_SIZE - 2; c++) {
+                    if (grid[r][c].type === grid[r][c+1].type && grid[r][c].type === grid[r][c+2].type) {
+                        matched.add(grid[r][c]); matched.add(grid[r][c+1]); matched.add(grid[r][c+2]);
+                    }
+                }
+            }
+            // Dikey
+            for (let c = 0; c < GRID_SIZE; c++) {
+                for (let r = 0; r < GRID_SIZE - 2; r++) {
+                    if (grid[r][c].type === grid[r+1][c].type && grid[r][c].type === grid[r+2][c].type) {
+                        matched.add(grid[r][c]); matched.add(grid[r+1][c]); matched.add(grid[r+2][c]);
+                    }
+                }
+            }
+            return Array.from(matched);
+        }
+
+        async function resolveMatches() {
+            let combo = 0;
+            while (true) {
+                const matches = findMatches();
+                if (matches.length === 0) break;
+
+                combo++;
+                showMotivationalText(matches[0].r, matches[0].c, combo);
+                
+                score += matches.length * 10 * combo;
+                document.getElementById('score').innerText = score;
+
+                // Patlatma animasyonu ve silme
+                matches.forEach(m => {
+                    m.element.style.transform = 'scale(0)';
+                    setTimeout(() => m.element.remove(), 200);
+                    grid[m.r][m.c] = null;
+                });
+
+                await new Promise(r => setTimeout(r, 300));
+                await fillGrid();
+                await new Promise(r => setTimeout(r, 300));
+            }
+        }
+
+        async function fillGrid() {
+            // Düşürme
+            for (let c = 0; c < GRID_SIZE; c++) {
+                let emptyRows = 0;
+                for (let r = GRID_SIZE - 1; r >= 0; r--) {
+                    if (grid[r][c] === null) {
+                        emptyRows++;
+                    } else if (emptyRows > 0) {
+                        const candy = grid[r][c];
+                        grid[r + emptyRows][c] = candy;
+                        grid[r][c] = null;
+                        candy.r = r + emptyRows;
+                        candy.element.style.top = (candy.r * (100 / GRID_SIZE)) + '%';
+                    }
+                }
+                // Yeni şekerler
+                for (let r = 0; r < emptyRows; r++) {
+                    const type = Math.floor(Math.random() * EMOJIS.length);
+                    const candy = { r, c, type, element: createCandyElement(r, c, type) };
+                    grid[r][c] = candy;
+                    candy.element.style.top = '-10%';
+                    gridEl.appendChild(candy.element);
+                    setTimeout(() => {
+                        candy.element.style.top = (r * (100 / GRID_SIZE)) + '%';
+                    }, 50);
+                }
+            }
+        }
+
+        function showMotivationalText(r, c, combo) {
+            const text = document.createElement('div');
+            text.className = 'motivational-text';
+            text.innerText = combo > 1 ? `${WORDS[combo % WORDS.length]} x${combo}` : WORDS[Math.floor(Math.random()*WORDS.length)];
+            text.style.left = (c * 10) + '%';
+            text.style.top = (r * 10) + '%';
+            document.body.appendChild(text);
+            setTimeout(() => text.remove(), 1000);
+        }
+
+        function checkStatus() {
+            if (score >= 5000) {
+                showModal("TEBRİKLER!", "Harikasın Şükran ✨ Çeyizleri dizdin, skorun: " + score);
+            } else if (moves <= 0) {
+                showModal("OYUN BİTTİ", "Olsun Şükran, bir dahaki sefere daha çok altın toplarız! ❤️");
+            }
+        }
+
+        function showModal(title, msg) {
+            document.getElementById('m-title').innerText = title;
+            document.getElementById('m-msg').innerText = msg;
+            document.getElementById('modal').style.display = 'flex';
+        }
+    </script>
+</body>
+</html>
